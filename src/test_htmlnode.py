@@ -1,6 +1,6 @@
 import unittest
 
-from htmlnode import HTMLNode, LeafNode
+from htmlnode import HTMLNode, LeafNode, ParentNode
 
 class TestHTMLNode(unittest.TestCase):
     def test_repr(self):
@@ -28,7 +28,7 @@ class TestLeafNode(unittest.TestCase):
         # Confirm things break if you don't set value for LeafNodes
         got_exception = False
         try:
-            bad_leafnode = LeafNode()
+            bad_leafnode = LeafNode(None, None)
             bad_leafnode.to_html()
         except ValueError:
             got_exception = True
@@ -41,5 +41,59 @@ class TestLeafNode(unittest.TestCase):
         good_leafnode2 = LeafNode("a", "Click me!", {"href": "https://www.google.com"})
         self.assertEqual(good_leafnode2.to_html(), '<a href="https://www.google.com">Click me!</a>')
 
-        text_leafnode = LeafNode(value="I'm by myself.")
+        text_leafnode = LeafNode(None, value="I'm by myself.")
         self.assertEqual(text_leafnode.to_html(), "I'm by myself.")
+
+class TestParentNode(unittest.TestCase):
+    def test_tohtml(self):
+        # Confirm things break if you don't set tags or children for parent nodes
+        got_exception = False
+        try:
+            bad_leafnode = ParentNode(None, [])
+            bad_leafnode.to_html()
+        except ValueError:
+            got_exception = True
+        self.assertTrue(got_exception, "Tag was not set, but ParentNode's to_html function didn't fail.")
+
+        got_exception = False
+        try:
+            bad_leafnode = ParentNode("a", None)
+            bad_leafnode.to_html()
+        except ValueError:
+            got_exception = True
+        self.assertTrue(got_exception, "Children was not set, but ParentNode's to_html function didn't fail.")
+
+        # Now test some nodes.
+
+        parent_node1 = ParentNode(
+            "p",
+            [
+                LeafNode("b", "Bold text"),
+                LeafNode(None, "Normal text"),
+                LeafNode("i", "italic text"),
+                LeafNode(None, "Normal text"),
+            ],
+        )
+        self.assertEqual(parent_node1.to_html(), '<p><b>Bold text</b>Normal text<i>italic text</i>Normal text</p>')
+
+        parent_node2 = ParentNode(
+            "p",
+            [
+                LeafNode("b", "Bold text", {"href": "https://www.google.com", "target": "_blank"}),
+                ParentNode('p', [
+                    LeafNode("i", "italic text")
+                ]),
+                LeafNode(None, "Normal text"),
+                ParentNode(
+                    'p',
+                    [
+                        LeafNode("b", "Bold text", {"href": "https://www.youtube.com"}),
+                        LeafNode("i", "italic text")
+                    ],
+                    {"href": "https://www.wikipedia.com", "target": "_blank"}
+                )
+            ],
+            {"href": "https://www.github.com/"}
+        )
+        expected_htmlstring = '<p href="https://www.github.com/"><b href="https://www.google.com" target="_blank">Bold text</b><p><i>italic text</i></p>Normal text<p href="https://www.wikipedia.com" target="_blank"><b href="https://www.youtube.com">Bold text</b><i>italic text</i></p></p>'
+        self.assertEqual(parent_node2.to_html(), expected_htmlstring)
